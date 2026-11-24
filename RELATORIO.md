@@ -123,7 +123,7 @@ docker compose logs --tail 5 api
 ## E05 - Git (3 valores)
 Branch, hashes de commits, merge e tag v1.0.0:
 
-Inicializei o repositório com `git init` e, antes do primeiro commit, confirmei que o `.gitignore` deixa de fora o que não deve ir para o Git:
+Inicializei o repositório com `git init -b main` e, antes do primeiro commit, confirmei que o `.gitignore` deixa de fora o que não deve ir para o Git:
 
 ```powershell
 git check-ignore -v .venv/ .env __pycache__/ .pytest_cache/ teste.pyc
@@ -165,7 +165,36 @@ O merge foi fast-forward, porque a `main` não tinha avançado desde que criei a
 ## E06 - Jenkins SUCCESS (4 valores)
 URL/numero do build, etapas e identificador da imagem construida:
 
-(a preencher)
+Voltei a montar o Jenkins da ficha anterior. No agente confirmei Git 2.47.3, Python 3.13.5 e Docker CLI 26.1.5, e o `docker info` através do agente respondeu `28.5.2`.
+
+Completei o `Jenkinsfile` com as três etapas pedidas:
+- **Checkout:** `checkout scm` e `git log -1 --oneline`, para ficar registado qual foi o commit usado.
+- **Tests:** cria o `.venv`, instala o `requirements.txt` e o `requirements-dev.txt` e corre o `pytest -q`.
+- **Docker Build:** `docker build -t "natixis-support:ci-${BUILD_NUMBER}" .` seguido de `docker image inspect ... --format '{{.Id}}'`.
+
+Fiz commit e push (`e9fa8c3 ci: completar pipeline com testes e docker build`) e criei o job `tp-integrador-ci` do tipo Pipeline script from SCM, a apontar para `https://github.com/rafafernandes888/tp-integrador.git`, branch `*/main`, Script Path `Jenkinsfile`.
+
+**Build #1:** `http://localhost:8080/job/tp-integrador-ci/1/`. Resultado: **SUCCESS** (1 min 54 s), a correr no `ci-python-docker`.
+
+```
+Obtained Jenkinsfile from git https://github.com/rafafernandes888/tp-integrador.git
+Running on ci-python-docker in /home/jenkins/agent/workspace/tp-integrador-ci
++ git log -1 --oneline
+e9fa8c3 ci: completar pipeline com testes e docker build
++ .venv/bin/python -m pytest -q
+2 passed, 1 warning in 1.02s
++ docker build -t natixis-support:ci-1 .
+Successfully tagged natixis-support:ci-1
++ docker image inspect natixis-support:ci-1 --format {{.Id}}
+sha256:5940ba4eb271e75b5ed5ee8a3917e903903b61398c2ba578358f000b0d66dd20
+Finished: SUCCESS
+```
+
+As etapas Checkout (1 s), Tests (33 s) e Docker Build (49 s) ficaram todas verdes. A imagem `natixis-support:ci-1` ficou com o ID `sha256:5940ba4eb271e75b5ed5ee8a3917e903903b61398c2ba578358f000b0d66dd20` e é guardada no Docker Engine do laboratório, não no Docker do meu PC.
+
+Prints: `evidencias/E06_build1_stages.png` e `evidencias/E06_build1_console.png`.
+
+**A pipeline vai buscar o código ao Git, corre os testes automaticamente e só depois constrói a imagem. A tag `ci-1` liga a imagem ao número do build, por isso sei sempre de que execução saiu.**
 
 ## E07 - Jenkins FAILURE e recuperacao (2 valores)
 Build FAILURE, etapa que falhou e excerto relevante do log; build SUCCESS apos correcao:
