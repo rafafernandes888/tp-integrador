@@ -137,7 +137,7 @@ git check-ignore -v .venv/ .env __pycache__/ .pytest_cache/ teste.pyc
 .gitignore:4:*.pyc        teste.pyc
 ```
 
-Depois fiz o primeiro commit com a aplicação a funcionar (`6a6d7fd feat: ambiente integrador funcional`) e criei a branch `fix/health-info`. Nessa branch acrescentei o campo `"team": "support"` à resposta do `/health` e a assert `assert response.json()["team"] == "support"` ao `test_health`. Corri os testes antes do commit e deram `2 passed`.
+Depois fiz o primeiro commit com a aplicação a funcionar (`6a6d7fd feat: ambiente integrador funcional`) e criei a branch `fix/health-info`. Nessa branch acrescentei o campo `"team": "support"` à resposta do `/health` e a linha `assert response.json()["team"] == "support"` ao `test_health`. Corri os testes antes do commit e deram `2 passed`.
 
 ```powershell
 git switch -c fix/health-info
@@ -165,7 +165,7 @@ O merge foi fast-forward, porque a `main` não tinha avançado desde que criei a
 ## E06 - Jenkins SUCCESS (4 valores)
 URL/numero do build, etapas e identificador da imagem construida:
 
-Voltei a montar o Jenkins da ficha anterior. No agente confirmei Git 2.47.3, Python 3.13.5 e Docker CLI 26.1.5, e o `docker info` através do agente respondeu `28.5.2`.
+Voltei a montar o Jenkins da ficha anterior (Jenkins 2.580.2, com o agente `ci-python-docker` ligado por WebSocket e o Docker Engine do laboratório). No agente confirmei Git 2.47.3, Python 3.13.5 e Docker CLI 26.1.5, e o `docker info` através do agente respondeu `28.5.2`.
 
 Completei o `Jenkinsfile` com as três etapas pedidas:
 - **Checkout:** `checkout scm` e `git log -1 --oneline`, para ficar registado qual foi o commit usado.
@@ -192,15 +192,52 @@ Finished: SUCCESS
 
 As etapas Checkout (1 s), Tests (33 s) e Docker Build (49 s) ficaram todas verdes. A imagem `natixis-support:ci-1` ficou com o ID `sha256:5940ba4eb271e75b5ed5ee8a3917e903903b61398c2ba578358f000b0d66dd20` e é guardada no Docker Engine do laboratório, não no Docker do meu PC.
 
-Prints: `evidencias/E06_build1_stages.png` e `evidencias/E06_build1_console.png`.
+Prints: `evidencias/E06_build1_stages.png`, `evidencias/E06_build1_tests.png` e `evidencias/E06_build1_console.png`.
 
 **A pipeline vai buscar o código ao Git, corre os testes automaticamente e só depois constrói a imagem. A tag `ci-1` liga a imagem ao número do build, por isso sei sempre de que execução saiu.**
 
 ## E07 - Jenkins FAILURE e recuperacao (2 valores)
 Build FAILURE, etapa que falhou e excerto relevante do log; build SUCCESS apos correcao:
 
-(a preencher)
+Para provocar uma falha controlada, alterei temporariamente o `test_health` para esperar `status="offline"`, enquanto a API continua a devolver `"ok"`. Fiz commit e push (`ab93acb test: simular falha controlada no test_health (offline)`) e corri o job outra vez.
+
+**Build #2:** `http://localhost:8080/job/tp-integrador-ci/2/`. Resultado: **FAILURE** na etapa **Tests**.
+
+```
+>       assert response.json()["status"] == "offline"
+E       AssertionError: assert 'ok' == 'offline'
+tests/test_app.py:9: AssertionError
+FAILED tests/test_app.py::test_health - AssertionError: assert 'ok' == 'offline'
+1 failed, 1 passed, 1 warning in 1.33s
+Stage "Docker Build" skipped due to earlier failure(s)
+ERROR: script returned exit code 1
+Finished: FAILURE
+```
+
+O teste esperava `offline` e a API respondeu `ok`, por isso o pytest saiu com código 1. A etapa Tests ficou vermelha e o Docker Build nem chegou a correr, ou seja, não se construiu nenhuma imagem a partir de código que não passou nos testes. O outro teste (`test_visits_persistence`) continuou a passar.
+
+Depois repus o assert correto (`== "ok"`), fiz commit e push (`8ad1cfa test: repor assert correta no test_health`) e corri o job uma terceira vez.
+
+**Build #3:** `http://localhost:8080/job/tp-integrador-ci/3/`. Resultado: **SUCCESS**.
+
+```
+2 passed, 1 warning in 0.80s
++ docker build -t natixis-support:ci-3 .
+ ---> Using cache
+Successfully tagged natixis-support:ci-3
++ docker image inspect natixis-support:ci-3 --format {{.Id}}
+sha256:5940ba4eb271e75b5ed5ee8a3917e903903b61398c2ba578358f000b0d66dd20
+Finished: SUCCESS
+```
+
+A imagem `ci-3` tem o mesmo ID da `ci-1`, e o build usou a cache. Faz sentido, porque o código que entra na imagem é igual nos dois builds: só mudaram os testes, e a pasta `tests` não é copiada para a imagem.
+
+Mantive os três builds no histórico do Jenkins e os dois commits de demonstração no Git.
+
+Prints: `evidencias/E07_build2_stages.png`, `evidencias/E07_build2_tests.png`, `evidencias/E07_build2_console.png`, `evidencias/E07_build3_stages.png`, `evidencias/E07_build3_tests.png` e `evidencias/E07_build3_console.png`.
+
+**A pipeline funcionou como uma barreira, porque um teste a falhar parou tudo antes do build da imagem. Com o log foi fácil ver a etapa, o ficheiro, a linha e o valor esperado e o recebido. Depois de corrigir, o build seguinte voltou a SUCCESS.**
 
 ## Verificacao final
-[ ] Dockerfile [ ] compose.yaml [ ] app.py [ ] tests/ [ ] Jenkinsfile
-[ ] Historico Git [ ] Tag v1.0.0 [ ] Evidencias E01-E07
+[x] Dockerfile [x] compose.yaml [x] app.py [x] tests/ [x] Jenkinsfile
+[x] Historico Git [x] Tag v1.0.0 [x] Evidencias E01-E07
