@@ -43,7 +43,7 @@ HTTP/1.1 200 OK
 {"status":"ok","service":"support-api","version":"1.0"}
 ```
 
-Nos logs aparece `Uvicorn running on http://0.0.0.0:8000` e o meu pedido `"GET /health HTTP/1.1" 200 OK`. O `id` deu `uid=999(appuser) gid=999(appgroup)`, por isso o container não está a correr como root. No fim removi o container com `docker rm -f`, mas a imagem continua lá.
+Nos logs aparece `Uvicorn running on http://0.0.0.0:8000` e o meu pedido `"GET /health HTTP/1.1" 200 OK`. O `id` deu `uid=999(appuser) gid=999(appgroup)`, por isso o container não está a correr como root. No fim removi o container com `docker rm -f`, mas a imagem continua lá. A escrita em /data com este utilizador fica provada no E03, quando o POST /visits gravou o contador no volume.
 
 **A imagem funciona, a API responde com 200 e `status="ok"` e corre com um utilizador sem privilégios, como era pedido.**
 
@@ -137,7 +137,14 @@ git check-ignore -v .venv/ .env __pycache__/ .pytest_cache/ teste.pyc
 .gitignore:4:*.pyc        teste.pyc
 ```
 
-Depois fiz o primeiro commit com a aplicação a funcionar (`6a6d7fd feat: ambiente integrador funcional`) e criei a branch `fix/health-info`. Nessa branch acrescentei o campo `"team": "support"` à resposta do `/health` e a linha `assert response.json()["team"] == "support"` ao `test_health`. Corri os testes antes do commit e deram `2 passed`.
+Depois fiz o primeiro commit com a aplicação a funcionar (`6a6d7fd feat: ambiente integrador funcional`) e criei a branch `fix/health-info`. Nessa branch acrescentei o campo `"team": "support"` à resposta do `/health` e a linha `assert response.json()["team"] == "support"` ao `test_health`. Corri os testes antes do commit e deram `2 passed`:
+
+```powershell
+docker run --rm -v "${PWD}:/app" -w /app python:3.13-slim sh -c "pip install -q -r requirements.txt -r requirements-dev.txt && python -m pytest -q"
+```
+```
+2 passed, 1 warning in 1.75s
+```
 
 ```powershell
 git switch -c fix/health-info
