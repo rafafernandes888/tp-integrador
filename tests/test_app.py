@@ -8,6 +8,7 @@ def test_health():
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
     assert "service" in response.json()
+    assert response.json()["team"] == "support"
 
 
 def test_visits_persistence(tmp_path, monkeypatch):
