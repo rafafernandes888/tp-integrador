@@ -123,7 +123,44 @@ docker compose logs --tail 5 api
 ## E05 - Git (3 valores)
 Branch, hashes de commits, merge e tag v1.0.0:
 
-(a preencher)
+Inicializei o repositório com `git init` e, antes do primeiro commit, confirmei que o `.gitignore` deixa de fora o que não deve ir para o Git:
+
+```powershell
+git check-ignore -v .venv/ .env __pycache__/ .pytest_cache/ teste.pyc
+```
+
+```
+.gitignore:1:.venv/       .venv/
+.gitignore:5:.env         .env
+.gitignore:2:__pycache__/ __pycache__/
+.gitignore:3:.pytest_cache/ .pytest_cache/
+.gitignore:4:*.pyc        teste.pyc
+```
+
+Depois fiz o primeiro commit com a aplicação a funcionar (`6a6d7fd feat: ambiente integrador funcional`) e criei a branch `fix/health-info`. Nessa branch acrescentei o campo `"team": "support"` à resposta do `/health` e a assert `assert response.json()["team"] == "support"` ao `test_health`. Corri os testes antes do commit e deram `2 passed`.
+
+```powershell
+git switch -c fix/health-info
+git add app.py tests/test_app.py
+git commit -m "fix: acrescentar identificacao no health"
+git switch main
+git merge fix/health-info
+git tag -a v1.0.0 -m "Release integrador 1.0.0"
+git log --oneline --graph --decorate -6
+git remote add origin https://github.com/rafafernandes888/tp-integrador.git
+git push -u origin main
+git push origin fix/health-info
+git push origin v1.0.0
+```
+
+```
+* 1c8f0fb (HEAD -> main, tag: v1.0.0, origin/main, origin/fix/health-info, fix/health-info) fix: acrescentar identificacao no health
+* 6a6d7fd feat: ambiente integrador funcional
+```
+
+O merge foi fast-forward, porque a `main` não tinha avançado desde que criei a branch, e por isso o histórico ficou linear. A tag anotada `v1.0.0` aponta para o commit `1c8f0fb` (`Tagger: ... Tue Nov 24 10:04:27 2026`, mensagem `Release integrador 1.0.0`) e foi publicada no GitHub, juntamente com a `main` e a branch. No fim reconstruí a API no Compose e o `/health` passou a devolver `{"status":"ok","service":"support-api-integrador","version":"1.0","team":"support"}`, com o `/visits` ainda em `{"visits":1}`.
+
+**A alteração foi feita numa branch isolada, testada, integrada na `main` e marcada como release `v1.0.0`. Fica rastreável no GitHub qual foi o commit que entrou nessa versão.**
 
 ## E06 - Jenkins SUCCESS (4 valores)
 URL/numero do build, etapas e identificador da imagem construida:
