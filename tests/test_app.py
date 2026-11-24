@@ -6,7 +6,7 @@ def test_health():
     with TestClient(service.app) as client:
         response = client.get("/health")
     assert response.status_code == 200
-    assert response.json()["status"] == "offline"
+    assert response.json()["status"] == "ok"
     assert "service" in response.json()
     assert response.json()["team"] == "support"
 
